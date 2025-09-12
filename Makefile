@@ -15,6 +15,8 @@ run:
 	@echo "Запуск сервера..."
 	@go run $(MAIN_PATH) -dsn "$(DSN)"
 
+all: build docker-up run
+
 clean:
 	@echo "Очистка..."
 	@rm -rf $(BUILD_DIR)
@@ -49,6 +51,7 @@ help:
 	@echo "Доступные команды:"
 	@echo "  make build          - Сборка приложения"
 	@echo "  make run            - Запуск сервера"
+	@echo "  make all            - Сборка, контейнеры и запуск сервера"
 	@echo "  make clean          - Удаление бинарных файлов"
 	@echo "  make docker-up      - Запуск Docker контейнеров (PostgreSQL + Kafka)"
 	@echo "  make docker-down    - Остановка Docker контейнеров"

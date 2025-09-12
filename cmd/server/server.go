@@ -4,6 +4,9 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/RoGogDBD/wb/api/docs"
@@ -88,7 +91,6 @@ func run() error {
 	r.Get("/healthz", h.HealthHandler)
 	r.Get("/order/{order_uid}", h.OrderHandler)
 
-	// Конфигурация и запуск сервера
 	srv := &http.Server{
 		Addr:         addr.String(),
 		Handler:      r,
@@ -96,5 +98,32 @@ func run() error {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-	return srv.ListenAndServe()
+
+	// Горутина для graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+	log.Println("Server started")
+
+	// Ждём сигнал для завершения
+	<-quit
+	log.Println("Shutting down server...")
+
+	ctxShutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctxShutdown); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	// Завершение других ресурсов (Kafka, DB и т.д.)
+	cancel()
+	log.Println("Server exited gracefully")
+
+	return nil
 }
