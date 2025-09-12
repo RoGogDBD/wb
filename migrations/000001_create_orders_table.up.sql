@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS payments (
     currency CHAR(3) NOT NULL,
     provider TEXT,
     amount NUMERIC NOT NULL,
-    payment_dt TIMESTAMP,
+    payment_dt BIGINT,
     bank TEXT,
     delivery_cost NUMERIC,
     goods_total NUMERIC,
@@ -55,5 +55,22 @@ CREATE TABLE IF NOT EXISTS items (
     status INTEGER
 );
 
-ALTER TABLE deliveries ADD CONSTRAINT deliveries_order_uid_unique UNIQUE(order_uid);
-ALTER TABLE payments ADD CONSTRAINT payments_order_uid_unique UNIQUE(order_uid);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'deliveries_order_uid_unique'
+    ) THEN
+        ALTER TABLE deliveries ADD CONSTRAINT deliveries_order_uid_unique UNIQUE(order_uid);
+    END IF;
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'payments_order_uid_unique'
+    ) THEN
+        ALTER TABLE payments ADD CONSTRAINT payments_order_uid_unique UNIQUE(order_uid);
+    END IF;
+END$$;
