@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/RoGogDBD/wb/internal/repository"
@@ -10,12 +11,21 @@ import (
 )
 
 type Handler struct {
-	storage *repository.MemStorage
-	db      *pgxpool.Pool
+	storage   *repository.MemStorage
+	pgStorage *repository.PostgresStorage
+	db        *pgxpool.Pool
 }
 
 func NewHandler(storage *repository.MemStorage, db *pgxpool.Pool) *Handler {
-	return &Handler{storage: storage, db: db}
+	var pgStorage *repository.PostgresStorage
+	if db != nil {
+		pgStorage = repository.NewPostgresStorage(db)
+	}
+	return &Handler{
+		storage:   storage,
+		pgStorage: pgStorage,
+		db:        db,
+	}
 }
 
 // @Summary Проверка работоспособности сервера
@@ -47,10 +57,29 @@ func (h *Handler) OrderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Сначала пытаемся получить из кеша
 	order, err := h.storage.GetByID(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
+		// Если не найден в кеше и есть доступ к БД, пытаемся получить из БД
+		if h.pgStorage != nil {
+			log.Printf("Order %s not found in cache, checking database", id)
+			order, err = h.pgStorage.GetOrderByID(r.Context(), id)
+			if err != nil {
+				log.Printf("Order %s not found in database: %v", id, err)
+				http.Error(w, "Order not found", http.StatusNotFound)
+				return
+			}
+
+			// Сохраняем в кеш для последующих запросов
+			if err := h.storage.Save(order); err != nil {
+				log.Printf("Warning: failed to cache order %s: %v", id, err)
+			} else {
+				log.Printf("Order %s loaded from DB and cached", id)
+			}
+		} else {
+			http.Error(w, "Order not found", http.StatusNotFound)
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
