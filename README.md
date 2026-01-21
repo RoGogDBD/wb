@@ -48,7 +48,7 @@ docker exec -it kafka kafka-topics --create --topic orders --partitions 1 --repl
 ```bash
 make run
 # или
-go run ./cmd/server -dsn "postgres://wbuser:wbpass@localhost:5432/wbdb?sslmode=disable"
+go run ./cmd/server
 ```
 
 5. **Отправить тестовые данные:**
@@ -60,6 +60,22 @@ go run ./scripts/send_test_order.go -count 1
 ```
 
 ## Использование
+
+### Конфигурация
+
+Сервис читает настройки из `config.yaml` (по умолчанию в корне проекта). Можно указать путь через переменную окружения `CONFIG_PATH`.
+
+Пример запуска с кастомным конфигом:
+
+```bash
+CONFIG_PATH=./config.yaml go run ./cmd/server
+```
+
+Основные параметры (см. `config.yaml`):
+
+- `database.dsn` — строка подключения к PostgreSQL
+- `kafka.brokers`, `kafka.topic`, `kafka.group_id` — настройки Kafka
+- `cache.max_items`, `cache.ttl`, `cache.cleanup_interval` — лимит и TTL кэша
 
 ### Веб-интерфейс
 

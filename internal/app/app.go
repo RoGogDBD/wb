@@ -27,12 +27,16 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 	app := &App{
 		Config:  cfg,
-		Storage: repository.NewMemStorageWithLimit(cfg.Cache.MaxItems),
+		Storage: repository.NewMemStorageWithConfig(cfg.Cache.MaxItems, cfg.Cache.TTL),
 		ctx:     ctx,
 		cancel:  cancel,
 	}
 
 	log.Printf("Initialized cache with max %d items", cfg.Cache.MaxItems)
+	if cfg.Cache.TTL > 0 {
+		log.Printf("Cache TTL set to %s", cfg.Cache.TTL)
+	}
+	app.Storage.StartJanitor(ctx, cfg.Cache.CleanupInterval)
 
 	// Инициализация БД
 	if err := app.initDatabase(ctx); err != nil {

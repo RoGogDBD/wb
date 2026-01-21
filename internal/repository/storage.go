@@ -2,8 +2,10 @@ package repository
 
 import (
 	"container/list"
+	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/RoGogDBD/wb/internal/models"
 )
@@ -14,11 +16,13 @@ type (
 		lruList  *list.List
 		mu       sync.RWMutex
 		maxItems int
+		ttl      time.Duration
 	}
 
 	cacheEntry struct {
-		key   string
-		order *models.Order
+		key       string
+		order     *models.Order
+		expiresAt time.Time
 	}
 )
 
@@ -34,13 +38,26 @@ func NewMemStorageWithLimit(maxItems int) *MemStorage {
 	}
 }
 
+func NewMemStorageWithConfig(maxItems int, ttl time.Duration) *MemStorage {
+	return &MemStorage{
+		orders:   make(map[string]*list.Element),
+		lruList:  list.New(),
+		maxItems: maxItems,
+		ttl:      ttl,
+	}
+}
+
 func (s *MemStorage) Save(order *models.Order) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if elem, exists := s.orders[order.OrderUID]; exists {
 		s.lruList.MoveToFront(elem)
-		elem.Value.(*cacheEntry).order = order
+		entry := elem.Value.(*cacheEntry)
+		entry.order = order
+		if s.ttl > 0 {
+			entry.expiresAt = time.Now().Add(s.ttl)
+		}
 		return nil
 	}
 
@@ -51,6 +68,9 @@ func (s *MemStorage) Save(order *models.Order) error {
 	entry := &cacheEntry{
 		key:   order.OrderUID,
 		order: order,
+	}
+	if s.ttl > 0 {
+		entry.expiresAt = time.Now().Add(s.ttl)
 	}
 	elem := s.lruList.PushFront(entry)
 	s.orders[order.OrderUID] = elem
@@ -67,9 +87,16 @@ func (s *MemStorage) GetByID(orderUID string) (*models.Order, error) {
 		return nil, fmt.Errorf("order not found in cache")
 	}
 
+	entry := elem.Value.(*cacheEntry)
+	if s.ttl > 0 && time.Now().After(entry.expiresAt) {
+		s.lruList.Remove(elem)
+		delete(s.orders, entry.key)
+		return nil, fmt.Errorf("order not found in cache")
+	}
+
 	// Перемещаем в начало (использован недавно)
 	s.lruList.MoveToFront(elem)
-	return elem.Value.(*cacheEntry).order, nil
+	return entry.order, nil
 }
 
 func (s *MemStorage) evictOldest() {
@@ -85,6 +112,50 @@ func (s *MemStorage) Len() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.lruList.Len()
+}
+
+func (s *MemStorage) PurgeExpired() int {
+	if s.ttl <= 0 {
+		return 0
+	}
+
+	now := time.Now()
+	purged := 0
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for elem := s.lruList.Back(); elem != nil; {
+		prev := elem.Prev()
+		entry := elem.Value.(*cacheEntry)
+		if !entry.expiresAt.IsZero() && now.After(entry.expiresAt) {
+			s.lruList.Remove(elem)
+			delete(s.orders, entry.key)
+			purged++
+		}
+		elem = prev
+	}
+
+	return purged
+}
+
+func (s *MemStorage) StartJanitor(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		return
+	}
+
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				s.PurgeExpired()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
 func (s *MemStorage) Clear() {

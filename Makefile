@@ -3,7 +3,7 @@
 APP_NAME=wb-service
 MAIN_PATH=./cmd/server
 BUILD_DIR=./build
-DSN=postgres://wbuser:wbpass@localhost:5432/wbdb?sslmode=disable
+CONFIG_PATH?=config.yaml
 
 build:
 	@echo "Сборка приложения..."
@@ -13,7 +13,7 @@ build:
 
 run:
 	@echo "Запуск сервера..."
-	@go run $(MAIN_PATH) -dsn "$(DSN)"
+	@CONFIG_PATH=$(CONFIG_PATH) go run $(MAIN_PATH)
 
 all: build docker-up run
 
