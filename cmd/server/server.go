@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -88,7 +89,7 @@ func startServerWithGracefulShutdown(srv *http.Server) error {
 	// Запуск сервера в отдельной горутине
 	go func() {
 		log.Printf("Server started on %s", srv.Addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErrors <- err
 		}
 	}()
