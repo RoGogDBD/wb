@@ -7,6 +7,7 @@ import (
 
 	"github.com/RoGogDBD/wb/internal/models"
 	"github.com/RoGogDBD/wb/internal/repository"
+	"github.com/go-playground/validator/v10"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/segmentio/kafka-go"
 )
@@ -17,9 +18,14 @@ func RunConsumer(ctx context.Context, brokers []string, topic string, pool *pgxp
 		Topic:   topic,
 		GroupID: "orders-consumer",
 	})
-	defer r.Close()
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Printf("kafka reader close error: %v", err)
+		}
+	}()
 
 	pgStorage := repository.NewPostgresStorage(pool)
+	validate := validator.New()
 
 	for {
 		m, err := r.ReadMessage(ctx)
@@ -34,8 +40,8 @@ func RunConsumer(ctx context.Context, brokers []string, topic string, pool *pgxp
 			continue
 		}
 
-		if ord.OrderUID == "" {
-			log.Printf("skipping message: missing OrderUID")
+		if err := validate.Struct(ord); err != nil {
+			log.Printf("validation failed for order: %v", err)
 			continue
 		}
 

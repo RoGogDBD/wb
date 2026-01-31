@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
 	"github.com/RoGogDBD/wb/internal/repository"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -36,7 +38,9 @@ func NewHandler(storage *repository.MemStorage, db *pgxpool.Pool) *Handler {
 // @Router /healthz [get]
 func (h *Handler) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	if _, err := w.Write([]byte("OK")); err != nil {
+		log.Printf("health response write error: %v", err)
+	}
 }
 
 // @Summary Получить заказ по ID
@@ -65,8 +69,13 @@ func (h *Handler) OrderHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Order %s not found in cache, checking database", id)
 			order, err = h.pgStorage.GetOrderByID(r.Context(), id)
 			if err != nil {
-				log.Printf("Order %s not found in database: %v", id, err)
-				http.Error(w, "Order not found", http.StatusNotFound)
+				if errors.Is(err, pgx.ErrNoRows) {
+					log.Printf("Order %s not found in database", id)
+					http.Error(w, "Order not found", http.StatusNotFound)
+				} else {
+					log.Printf("Order %s database error: %v", id, err)
+					http.Error(w, "Internal server error", http.StatusInternalServerError)
+				}
 				return
 			}
 
@@ -84,6 +93,7 @@ func (h *Handler) OrderHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(order); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("order response encode error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }

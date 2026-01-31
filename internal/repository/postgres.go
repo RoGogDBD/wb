@@ -150,6 +150,9 @@ func (r *PostgresStorage) GetOrderByID(ctx context.Context, orderUID string) (*m
 		}
 		o.Items = append(o.Items, it)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("scan items rows: %w", err)
+	}
 
 	return o, nil
 }
@@ -170,6 +173,9 @@ func (r *PostgresStorage) GetAllOrders(ctx context.Context) ([]models.Order, err
 			return nil, fmt.Errorf("scan order_uid: %w", err)
 		}
 		orderUIDs = append(orderUIDs, orderUID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("scan order_uid rows: %w", err)
 	}
 
 	for _, uid := range orderUIDs {
