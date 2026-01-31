@@ -59,7 +59,7 @@ func setupHTTPServer(cfg *config.Config, application *app.App) *http.Server {
 	docs.SwaggerInfo.BasePath = "/"
 
 	// Регистрация обработчиков
-	h := handlers.NewHandler(application.Storage, application.DBPool)
+	h := handlers.NewHandler(application.Storage, application.PgStorage)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./api/index.html")
 	})

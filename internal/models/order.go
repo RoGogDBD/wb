@@ -4,7 +4,7 @@ import "time"
 
 // Структура заказа
 type Order struct {
-	OrderUID          string    `json:"order_uid" validate:"required"`
+	OrderUID          string    `json:"order_uid" validate:"required,uuid"`
 	TrackNumber       string    `json:"track_number" validate:"required"`
 	Entry             string    `json:"entry" validate:"required"`
 	Delivery          Delivery  `json:"delivery" validate:"required"`

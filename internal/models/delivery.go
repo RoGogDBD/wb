@@ -3,8 +3,8 @@ package models
 // Структура доставки
 type Delivery struct {
 	Name    string `json:"name" validate:"required"`
-	Phone   string `json:"phone" validate:"required"`
-	Zip     string `json:"zip" validate:"required"`
+	Phone   string `json:"phone" validate:"required,phone_ru"`
+	Zip     string `json:"zip" validate:"required,zip_ru"`
 	City    string `json:"city" validate:"required"`
 	Address string `json:"address" validate:"required"`
 	Region  string `json:"region" validate:"required"`

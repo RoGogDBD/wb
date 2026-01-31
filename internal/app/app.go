@@ -15,8 +15,8 @@ import (
 type App struct {
 	Config    *config.Config
 	DBPool    *pgxpool.Pool
-	Storage   *repository.MemStorage
-	PgStorage *repository.PostgresStorage
+	Storage   repository.Cache
+	PgStorage repository.OrderStore
 	ctx       context.Context
 	cancel    context.CancelFunc
 }
@@ -62,7 +62,7 @@ func (a *App) Init() error {
 			a.ctx,
 			a.Config.Kafka.Brokers,
 			a.Config.Kafka.Topic,
-			a.DBPool,
+			a.PgStorage,
 			a.Storage,
 		)
 	}
@@ -100,11 +100,8 @@ func (a *App) loadOrdersToCache(ctx context.Context) error {
 
 	loaded := 0
 	for _, order := range orders {
-		if err := a.Storage.Save(&order); err != nil {
-			log.Printf("Warning: failed to cache order %s: %v", order.OrderUID, err)
-		} else {
-			loaded++
-		}
+		a.Storage.Save(&order)
+		loaded++
 	}
 
 	log.Printf("Loaded %d/%d orders into cache", loaded, len(orders))

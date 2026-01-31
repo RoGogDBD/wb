@@ -7,26 +7,22 @@ import (
 	"net/http"
 
 	"github.com/RoGogDBD/wb/internal/repository"
+	"github.com/RoGogDBD/wb/internal/validation"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Handler struct {
-	storage   *repository.MemStorage
-	pgStorage *repository.PostgresStorage
-	db        *pgxpool.Pool
+	storage   repository.Cache
+	pgStorage repository.OrderStore
 }
 
-func NewHandler(storage *repository.MemStorage, db *pgxpool.Pool) *Handler {
-	var pgStorage *repository.PostgresStorage
-	if db != nil {
-		pgStorage = repository.NewPostgresStorage(db)
-	}
+var validate = validation.New()
+
+func NewHandler(storage repository.Cache, pgStorage repository.OrderStore) *Handler {
 	return &Handler{
 		storage:   storage,
 		pgStorage: pgStorage,
-		db:        db,
 	}
 }
 
@@ -60,6 +56,10 @@ func (h *Handler) OrderHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing id parameter", http.StatusBadRequest)
 		return
 	}
+	if err := validate.Var(id, "required,uuid"); err != nil {
+		http.Error(w, "Invalid id parameter", http.StatusBadRequest)
+		return
+	}
 
 	// Сначала пытаемся получить из кеша
 	order, err := h.storage.GetByID(id)
@@ -80,11 +80,8 @@ func (h *Handler) OrderHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Сохраняем в кеш для последующих запросов
-			if err := h.storage.Save(order); err != nil {
-				log.Printf("Warning: failed to cache order %s: %v", id, err)
-			} else {
-				log.Printf("Order %s loaded from DB and cached", id)
-			}
+			h.storage.Save(order)
+			log.Printf("Order %s loaded from DB and cached", id)
 		} else {
 			http.Error(w, "Order not found", http.StatusNotFound)
 			return

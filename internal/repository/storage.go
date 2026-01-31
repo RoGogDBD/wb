@@ -53,7 +53,7 @@ func NewMemStorageWithConfig(maxItems int, ttl time.Duration) *MemStorage {
 	}
 }
 
-func (s *MemStorage) Save(order *models.Order) error {
+func (s *MemStorage) Save(order *models.Order) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -68,7 +68,7 @@ func (s *MemStorage) Save(order *models.Order) error {
 		if s.ttl > 0 {
 			entry.expiresAt = time.Now().Add(s.ttl)
 		}
-		return nil
+		return
 	}
 
 	if s.lruList.Len() >= s.maxItems {
@@ -84,8 +84,6 @@ func (s *MemStorage) Save(order *models.Order) error {
 	}
 	elem := s.lruList.PushFront(entry)
 	s.orders[order.OrderUID] = elem
-
-	return nil
 }
 
 func (s *MemStorage) GetByID(orderUID string) (*models.Order, error) {

@@ -7,12 +7,11 @@ import (
 
 	"github.com/RoGogDBD/wb/internal/models"
 	"github.com/RoGogDBD/wb/internal/repository"
-	"github.com/go-playground/validator/v10"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/RoGogDBD/wb/internal/validation"
 	"github.com/segmentio/kafka-go"
 )
 
-func RunConsumer(ctx context.Context, brokers []string, topic string, pool *pgxpool.Pool, mem *repository.MemStorage) {
+func RunConsumer(ctx context.Context, brokers []string, topic string, store repository.OrderStore, mem repository.Cache) {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: brokers,
 		Topic:   topic,
@@ -24,8 +23,7 @@ func RunConsumer(ctx context.Context, brokers []string, topic string, pool *pgxp
 		}
 	}()
 
-	pgStorage := repository.NewPostgresStorage(pool)
-	validate := validator.New()
+	validate := validation.New()
 
 	for {
 		m, err := r.ReadMessage(ctx)
@@ -45,14 +43,12 @@ func RunConsumer(ctx context.Context, brokers []string, topic string, pool *pgxp
 			continue
 		}
 
-		if err := pgStorage.InsertOrder(ctx, &ord); err != nil {
+		if err := store.InsertOrder(ctx, &ord); err != nil {
 			log.Printf("failed to save order to DB: %v", err)
 			continue
 		}
 
-		if err := mem.Save(&ord); err != nil {
-			log.Printf("cache save error: %v", err)
-		}
+		mem.Save(&ord)
 
 		log.Printf("successfully processed order %s", ord.OrderUID)
 	}

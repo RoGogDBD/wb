@@ -48,12 +48,12 @@ func main() {
 			OofShard:          "1",
 			Delivery: models.Delivery{
 				Name:    "Test Testov",
-				Phone:   "+9720000000",
-				Zip:     "2639809",
-				City:    "Kiryat Mozkin",
+				Phone:   "+79001234567",
+				Zip:     "123456",
+				City:    "Moscow",
 				Address: "Ploshad Mira 15",
-				Region:  "Kraiot",
-				Email:   "test@gmail.com",
+				Region:  "Moscow",
+				Email:   "test@example.com",
 			},
 			Payment: models.Payment{
 				Transaction:  "b563feb7b2b84b6test",
