@@ -21,7 +21,7 @@ type App struct {
 	cancel    context.CancelFunc
 }
 
-// NewApp создает и инициализирует новое приложение
+// NewApp создает новое приложение.
 func NewApp(cfg *config.Config) (*App, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -32,36 +32,42 @@ func NewApp(cfg *config.Config) (*App, error) {
 		cancel:  cancel,
 	}
 
-	log.Printf("Initialized cache with max %d items", cfg.Cache.MaxItems)
-	if cfg.Cache.TTL > 0 {
-		log.Printf("Cache TTL set to %s", cfg.Cache.TTL)
+	return app, nil
+}
+
+// Init выполняет инициализацию зависимостей приложения.
+func (a *App) Init() error {
+	log.Printf("Initialized cache with max %d items", a.Config.Cache.MaxItems)
+	if a.Config.Cache.TTL > 0 {
+		log.Printf("Cache TTL set to %s", a.Config.Cache.TTL)
 	}
-	app.Storage.StartJanitor(ctx, cfg.Cache.CleanupInterval)
+	a.Storage.StartJanitor(a.ctx, a.Config.Cache.CleanupInterval)
 
 	// Инициализация БД
-	if err := app.initDatabase(ctx); err != nil {
+	if err := a.initDatabase(a.ctx); err != nil {
 		log.Printf("Warning: cannot connect to DB: %v. Running without database.", err)
+		return nil
 	}
 
 	// Загрузка данных из БД в кэш
-	if app.PgStorage != nil {
-		if err := app.loadOrdersToCache(ctx); err != nil {
+	if a.PgStorage != nil {
+		if err := a.loadOrdersToCache(a.ctx); err != nil {
 			log.Printf("Warning: failed to load orders from DB: %v", err)
 		}
 	}
 
 	// Запуск Kafka consumer
-	if app.PgStorage != nil {
+	if a.PgStorage != nil {
 		go kafka.RunConsumer(
-			ctx,
-			cfg.Kafka.Brokers,
-			cfg.Kafka.Topic,
-			app.DBPool,
-			app.Storage,
+			a.ctx,
+			a.Config.Kafka.Brokers,
+			a.Config.Kafka.Topic,
+			a.DBPool,
+			a.Storage,
 		)
 	}
 
-	return app, nil
+	return nil
 }
 
 // initDatabase инициализирует подключение к базе данных

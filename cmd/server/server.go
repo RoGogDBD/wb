@@ -29,9 +29,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if err := application.Init(); err != nil {
+		log.Fatal(err)
+	}
 	defer application.Close()
 
-	if err := run(cfg, application); err != nil {
+	srv := setupHTTPServer(cfg, application)
+	if err := run(srv); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -39,12 +43,9 @@ func main() {
 // @title Order API
 // @version 1.0
 // @description API для получения информации о заказах
-func run(cfg *config.Config, application *app.App) error {
-	// Настройка HTTP сервера
-	srv := setupHTTPServer(cfg, application)
-
+func run(srv *http.Server) error {
 	// Graceful shutdown
-	return startServerWithGracefulShutdown(srv, application)
+	return startServerWithGracefulShutdown(srv)
 }
 
 // setupHTTPServer настраивает и возвращает HTTP сервер
@@ -76,7 +77,7 @@ func setupHTTPServer(cfg *config.Config, application *app.App) *http.Server {
 }
 
 // startServerWithGracefulShutdown запускает сервер с graceful shutdown
-func startServerWithGracefulShutdown(srv *http.Server, application *app.App) error {
+func startServerWithGracefulShutdown(srv *http.Server) error {
 	// Канал для приема сигналов завершения
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)

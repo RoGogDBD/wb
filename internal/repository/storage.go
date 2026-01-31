@@ -31,6 +31,9 @@ func NewMemStorage() *MemStorage {
 }
 
 func NewMemStorageWithLimit(maxItems int) *MemStorage {
+	if maxItems <= 0 {
+		maxItems = 10000
+	}
 	return &MemStorage{
 		orders:   make(map[string]*list.Element),
 		lruList:  list.New(),
@@ -39,6 +42,9 @@ func NewMemStorageWithLimit(maxItems int) *MemStorage {
 }
 
 func NewMemStorageWithConfig(maxItems int, ttl time.Duration) *MemStorage {
+	if maxItems <= 0 {
+		maxItems = 10000
+	}
 	return &MemStorage{
 		orders:   make(map[string]*list.Element),
 		lruList:  list.New(),
@@ -50,6 +56,10 @@ func NewMemStorageWithConfig(maxItems int, ttl time.Duration) *MemStorage {
 func (s *MemStorage) Save(order *models.Order) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.ttl > 0 {
+		s.purgeExpiredLocked(time.Now())
+	}
 
 	if elem, exists := s.orders[order.OrderUID]; exists {
 		s.lruList.MoveToFront(elem)
@@ -120,23 +130,10 @@ func (s *MemStorage) PurgeExpired() int {
 	}
 
 	now := time.Now()
-	purged := 0
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for elem := s.lruList.Back(); elem != nil; {
-		prev := elem.Prev()
-		entry := elem.Value.(*cacheEntry)
-		if !entry.expiresAt.IsZero() && now.After(entry.expiresAt) {
-			s.lruList.Remove(elem)
-			delete(s.orders, entry.key)
-			purged++
-		}
-		elem = prev
-	}
-
-	return purged
+	return s.purgeExpiredLocked(now)
 }
 
 func (s *MemStorage) StartJanitor(ctx context.Context, interval time.Duration) {
@@ -163,4 +160,19 @@ func (s *MemStorage) Clear() {
 	defer s.mu.Unlock()
 	s.orders = make(map[string]*list.Element)
 	s.lruList = list.New()
+}
+
+func (s *MemStorage) purgeExpiredLocked(now time.Time) int {
+	purged := 0
+	for elem := s.lruList.Back(); elem != nil; {
+		prev := elem.Prev()
+		entry := elem.Value.(*cacheEntry)
+		if !entry.expiresAt.IsZero() && now.After(entry.expiresAt) {
+			s.lruList.Remove(elem)
+			delete(s.orders, entry.key)
+			purged++
+		}
+		elem = prev
+	}
+	return purged
 }

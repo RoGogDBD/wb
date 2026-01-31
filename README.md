@@ -58,6 +58,7 @@ make send-test
 # или
 go run ./scripts/send_test_order.go -count 1
 ```
+Скрипт берёт настройки Kafka из `config.yaml` (или из пути, заданного через `CONFIG_PATH`).
 
 ## Использование
 

@@ -7,20 +7,27 @@ import (
 	"log"
 	"time"
 
+	"github.com/RoGogDBD/wb/internal/config"
 	"github.com/RoGogDBD/wb/internal/models"
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 )
 
 func main() {
-	brokerAddr := flag.String("broker", "localhost:9092", "Kafka broker address")
-	topic := flag.String("topic", "orders", "Kafka topic")
 	count := flag.Int("count", 1, "Number of test orders to send")
 	flag.Parse()
 
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+	if len(cfg.Kafka.Brokers) == 0 || cfg.Kafka.Topic == "" {
+		log.Fatal("Kafka brokers or topic not configured")
+	}
+
 	w := &kafka.Writer{
-		Addr:     kafka.TCP(*brokerAddr),
-		Topic:    *topic,
+		Addr:     kafka.TCP(cfg.Kafka.Brokers...),
+		Topic:    cfg.Kafka.Topic,
 		Balancer: &kafka.LeastBytes{},
 	}
 	defer w.Close()
