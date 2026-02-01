@@ -12,20 +12,25 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// Handler содержит HTTP-обработчики и их зависимости.
 type Handler struct {
-	storage   repository.Cache
-	pgStorage repository.OrderStore
+	cacheReader repository.CacheReader
+	cacheWriter repository.CacheWriter
+	pgStorage   repository.OrderStore
 }
 
 var validate = validation.MustNew()
 
-func NewHandler(storage repository.Cache, pgStorage repository.OrderStore) *Handler {
+// NewHandler создает новый Handler.
+func NewHandler(cacheReader repository.CacheReader, cacheWriter repository.CacheWriter, pgStorage repository.OrderStore) *Handler {
 	return &Handler{
-		storage:   storage,
-		pgStorage: pgStorage,
+		cacheReader: cacheReader,
+		cacheWriter: cacheWriter,
+		pgStorage:   pgStorage,
 	}
 }
 
+// HealthHandler отвечает OK на проверку здоровья.
 // @Summary Проверка работоспособности сервера
 // @Description Возвращает статус 200 OK и тело "OK", если сервер работает
 // @Tags health
@@ -39,6 +44,7 @@ func (h *Handler) HealthHandler(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
+// OrderHandler возвращает заказ по идентификатору.
 // @Summary Получить заказ по ID
 // @Description Возвращает данные заказа по его уникальному идентификатору
 // @Tags orders
@@ -62,7 +68,7 @@ func (h *Handler) OrderHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Сначала пытаемся получить из кеша
-	order, err := h.storage.GetByID(id)
+	order, err := h.cacheReader.GetByID(id)
 	if err != nil {
 		// Если не найден в кеше и есть доступ к БД, пытаемся получить из БД
 		if h.pgStorage != nil {
@@ -80,7 +86,7 @@ func (h *Handler) OrderHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Сохраняем в кеш для последующих запросов
-			h.storage.Save(order)
+			h.cacheWriter.Save(order)
 			log.Printf("Order %s loaded from DB and cached", id)
 		} else {
 			http.Error(w, "Order not found", http.StatusNotFound)

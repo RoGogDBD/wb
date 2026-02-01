@@ -17,6 +17,20 @@ run:
 
 all: build docker-up run
 
+test:
+	@echo "Запуск тестов..."
+	@go test ./...
+	@echo "Тесты завершены."
+
+lint:
+	@command -v golangci-lint >/dev/null 2>&1 || { \
+		echo "golangci-lint не найден. Установите: https://golangci-lint.run/usage/install/"; \
+		exit 1; \
+	}
+	@echo "Запуск линтера..."
+	@golangci-lint run ./...
+	@echo "Линт завершён."
+
 clean:
 	@echo "Очистка..."
 	@rm -rf $(BUILD_DIR)
@@ -52,6 +66,8 @@ help:
 	@echo "  make build          - Сборка приложения"
 	@echo "  make run            - Запуск сервера"
 	@echo "  make all            - Сборка, контейнеры и запуск сервера"
+	@echo "  make test           - Запуск тестов"
+	@echo "  make lint           - Запуск линтера"
 	@echo "  make clean          - Удаление бинарных файлов"
 	@echo "  make docker-up      - Запуск Docker контейнеров (PostgreSQL + Kafka)"
 	@echo "  make docker-down    - Остановка Docker контейнеров"

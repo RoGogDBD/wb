@@ -16,6 +16,7 @@ var retryIntervals = []time.Duration{
 	5 * time.Second,
 }
 
+// GetRetryIntervals выполняет op с предопределенными интервалами повторов.
 func GetRetryIntervals(ctx context.Context, op func() error) error {
 	var lastErr error
 	for i, wait := range retryIntervals {

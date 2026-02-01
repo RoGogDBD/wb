@@ -1,3 +1,4 @@
+// Package main запускает HTTP-сервер.
 package main
 
 import (
@@ -13,8 +14,11 @@ import (
 	"github.com/RoGogDBD/wb/api/docs"
 	"github.com/RoGogDBD/wb/internal/app"
 	"github.com/RoGogDBD/wb/internal/config"
+	"github.com/RoGogDBD/wb/internal/config/db"
 	"github.com/RoGogDBD/wb/internal/handlers"
+	"github.com/RoGogDBD/wb/internal/repository"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -25,8 +29,27 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Инициализация зависимостей приложения
+	cache := repository.NewMemStorageWithConfig(cfg.Cache.MaxItems, cfg.Cache.TTL)
+	var dbPool *pgxpool.Pool
+	var store repository.OrderStore
+	if cfg.Database.DSN == "" {
+		log.Println("No DSN provided, running without database")
+	} else {
+		dbPool, err = db.NewPool(context.Background(), cfg.Database.DSN)
+		if err != nil {
+			log.Printf("Warning: cannot connect to DB: %v. Running without database.", err)
+		} else {
+			store = repository.NewPostgresStorage(dbPool)
+		}
+	}
+
 	// Инициализация приложения
-	application, err := app.NewApp(cfg)
+	application, err := app.NewApp(cfg, app.Deps{
+		Cache:  cache,
+		Store:  store,
+		DBPool: dbPool,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,11 +64,11 @@ func main() {
 	}
 }
 
-// @title Order API
+// @title API заказов
 // @version 1.0
 // @description API для получения информации о заказах
 func run(srv *http.Server) error {
-	// Graceful shutdown
+	// Плавное завершение
 	return startServerWithGracefulShutdown(srv)
 }
 
@@ -60,7 +83,7 @@ func setupHTTPServer(cfg *config.Config, application *app.App) *http.Server {
 	docs.SwaggerInfo.BasePath = "/"
 
 	// Регистрация обработчиков
-	h := handlers.NewHandler(application.Storage, application.PgStorage)
+	h := handlers.NewHandler(application.Storage, application.Storage, application.PgStorage)
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./api/index.html")
 	})
@@ -77,7 +100,7 @@ func setupHTTPServer(cfg *config.Config, application *app.App) *http.Server {
 	}
 }
 
-// startServerWithGracefulShutdown запускает сервер с graceful shutdown
+// startServerWithGracefulShutdown запускает сервер с плавным завершением
 func startServerWithGracefulShutdown(srv *http.Server) error {
 	// Канал для приема сигналов завершения
 	quit := make(chan os.Signal, 1)
@@ -102,7 +125,7 @@ func startServerWithGracefulShutdown(srv *http.Server) error {
 		log.Println("Received shutdown signal")
 	}
 
-	// Graceful shutdown
+	// Плавное завершение
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

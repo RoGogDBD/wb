@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// NewPool создает пул подключений к PostgreSQL с повторами и миграциями.
 func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	var pool *pgxpool.Pool
 

@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// Структура заказа
+// Order описывает заказ.
 type Order struct {
 	OrderUID          string    `json:"order_uid" validate:"required,uuid"`
 	TrackNumber       string    `json:"track_number" validate:"required"`

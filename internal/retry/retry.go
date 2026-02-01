@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Backoff computes exponential backoff delays with optional jitter.
+// Backoff рассчитывает экспоненциальные задержки с опциональным джиттером.
 type Backoff struct {
 	Base   time.Duration
 	Cap    time.Duration
@@ -18,20 +18,20 @@ type Backoff struct {
 	rnd *rand.Rand
 }
 
-// NewBackoff builds a Backoff with its own RNG.
-func NewBackoff(base time.Duration, cap time.Duration, jitter bool) *Backoff {
-	if cap > 0 && base > cap {
-		base = cap
+// NewBackoff создает Backoff с собственным генератором случайных чисел.
+func NewBackoff(base time.Duration, capDur time.Duration, jitter bool) *Backoff {
+	if capDur > 0 && base > capDur {
+		base = capDur
 	}
 	return &Backoff{
 		Base:   base,
-		Cap:    cap,
+		Cap:    capDur,
 		Jitter: jitter,
 		rnd:    rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
-// WaitDuration returns the delay for a given retry attempt (0-based).
+// WaitDuration возвращает задержку для попытки повтора (0-базовая).
 func (b *Backoff) WaitDuration(attempt int) time.Duration {
 	if b == nil || b.Base <= 0 || attempt < 0 {
 		return 0
@@ -63,14 +63,14 @@ func (b *Backoff) WaitDuration(attempt int) time.Duration {
 	return time.Duration(b.rnd.Int63n(int64(wait) + 1))
 }
 
-// Policy controls retry behavior.
+// Policy задает правила повторов.
 type Policy struct {
 	MaxRetries  int
 	Backoff     *Backoff
 	ShouldRetry func(err error) bool
 }
 
-// Do runs op with retries. onRetry is invoked after a failed attempt (1-based attempt).
+// Do выполняет op с повторами. onRetry вызывается после неуспешной попытки (1-базовая).
 func Do(ctx context.Context, policy Policy, op func() error, onRetry func(err error, attempt int, wait time.Duration)) error {
 	if policy.MaxRetries < 0 {
 		policy.MaxRetries = 0

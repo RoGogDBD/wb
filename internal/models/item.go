@@ -1,6 +1,6 @@
 package models
 
-// Структура товара
+// Item описывает товар.
 type Item struct {
 	ChrtID      int    `json:"chrt_id" validate:"gt=0"`
 	TrackNumber string `json:"track_number" validate:"required"`

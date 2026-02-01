@@ -12,6 +12,7 @@ var (
 	zipRU   = regexp.MustCompile(`^\d{6}$`)
 )
 
+// New создает валидатор с пользовательскими правилами.
 func New() (*validator.Validate, error) {
 	v := validator.New()
 	if err := v.RegisterValidation("phone_ru", func(fl validator.FieldLevel) bool {
@@ -27,6 +28,7 @@ func New() (*validator.Validate, error) {
 	return v, nil
 }
 
+// MustNew возвращает валидатор или паникует при ошибке инициализации.
 func MustNew() *validator.Validate {
 	v, err := New()
 	if err != nil {

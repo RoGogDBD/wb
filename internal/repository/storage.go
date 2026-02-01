@@ -11,6 +11,7 @@ import (
 )
 
 type (
+	// MemStorage — LRU-кеш в памяти с опциональным TTL.
 	MemStorage struct {
 		orders   map[string]*list.Element
 		lruList  *list.List
@@ -26,6 +27,7 @@ type (
 	}
 )
 
+// NewMemStorageWithConfig создает MemStorage с лимитами и TTL.
 func NewMemStorageWithConfig(maxItems int, ttl time.Duration) *MemStorage {
 	if maxItems <= 0 {
 		maxItems = 10000
@@ -38,6 +40,7 @@ func NewMemStorageWithConfig(maxItems int, ttl time.Duration) *MemStorage {
 	}
 }
 
+// Save сохраняет заказ в кеш.
 func (s *MemStorage) Save(order *models.Order) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -71,6 +74,7 @@ func (s *MemStorage) Save(order *models.Order) {
 	s.orders[order.OrderUID] = elem
 }
 
+// GetByID возвращает заказ по ID из кеша.
 func (s *MemStorage) GetByID(orderUID string) (*models.Order, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -101,12 +105,14 @@ func (s *MemStorage) evictOldest() {
 	}
 }
 
+// Len возвращает текущий размер кеша.
 func (s *MemStorage) Len() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.lruList.Len()
 }
 
+// PurgeExpired удаляет протухшие записи и возвращает количество.
 func (s *MemStorage) PurgeExpired() int {
 	if s.ttl <= 0 {
 		return 0
@@ -119,6 +125,7 @@ func (s *MemStorage) PurgeExpired() int {
 	return s.purgeExpiredLocked(now)
 }
 
+// StartJanitor запускает фоновую очистку.
 func (s *MemStorage) StartJanitor(ctx context.Context, interval time.Duration) {
 	if interval <= 0 {
 		return
@@ -138,6 +145,7 @@ func (s *MemStorage) StartJanitor(ctx context.Context, interval time.Duration) {
 	}()
 }
 
+// Clear удаляет все записи из кеша.
 func (s *MemStorage) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

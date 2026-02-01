@@ -29,8 +29,8 @@ func TestOrderHandler(t *testing.T) {
 			name:    "cache hit",
 			orderID: testOrder().OrderUID,
 			cache: &mocks.CacheMock{
-				GetByIDFunc: func(orderUID string) (*models.Order, error) {
-					order := testOrderWithID(orderUID)
+				GetByIDFunc: func(id string) (*models.Order, error) {
+					order := testOrderWithID(id)
 					return order, nil
 				},
 			},
@@ -42,12 +42,12 @@ func TestOrderHandler(t *testing.T) {
 			name:    "cache miss, db hit",
 			orderID: testOrder().OrderUID,
 			cache: &mocks.CacheMock{
-				GetByIDFunc: func(orderUID string) (*models.Order, error) {
+				GetByIDFunc: func(_ string) (*models.Order, error) {
 					return nil, errors.New("not found")
 				},
 			},
 			store: &mocks.OrderStoreMock{
-				GetOrderByIDFunc: func(ctx context.Context, orderUID string) (*models.Order, error) {
+				GetOrderByIDFunc: func(_ context.Context, orderUID string) (*models.Order, error) {
 					return testOrderWithID(orderUID), nil
 				},
 			},
@@ -59,7 +59,7 @@ func TestOrderHandler(t *testing.T) {
 			name:    "invalid id",
 			orderID: "not-a-uuid",
 			cache: &mocks.CacheMock{
-				GetByIDFunc: func(orderUID string) (*models.Order, error) {
+				GetByIDFunc: func(_ string) (*models.Order, error) {
 					return nil, errors.New("not found")
 				},
 			},
@@ -71,7 +71,7 @@ func TestOrderHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := NewHandler(tt.cache, tt.store)
+			h := NewHandler(tt.cache, tt.cache, tt.store)
 
 			r := chi.NewRouter()
 			r.Get("/order/{order_uid}", h.OrderHandler)

@@ -6,11 +6,12 @@ import (
 	"log"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/lib/pq"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres" // регистрация драйвера Postgres
+	_ "github.com/golang-migrate/migrate/v4/source/file"       // регистрация файлового источника
+	_ "github.com/lib/pq"                                      // регистрация драйвера Postgres для миграций
 )
 
+// RunMigrations применяет миграции базы данных.
 func RunMigrations(dsn string) error {
 	migrationsPath := "file://./migrations"
 	m, err := migrate.New(migrationsPath, dsn)

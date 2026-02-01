@@ -30,7 +30,11 @@ func main() {
 		Topic:    cfg.Kafka.Topic,
 		Balancer: &kafka.LeastBytes{},
 	}
-	defer w.Close()
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.Printf("kafka writer close error: %v", err)
+		}
+	}()
 
 	for i := 0; i < *count; i++ {
 		orderUID := uuid.New().String()

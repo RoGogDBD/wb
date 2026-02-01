@@ -1,6 +1,6 @@
 package models
 
-// Структура доставки
+// Delivery описывает данные доставки.
 type Delivery struct {
 	Name    string `json:"name" validate:"required"`
 	Phone   string `json:"phone" validate:"required,phone_ru"`

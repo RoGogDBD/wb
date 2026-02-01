@@ -1,6 +1,6 @@
 package models
 
-// Структура оплаты
+// Payment описывает оплату.
 type Payment struct {
 	Transaction  string `json:"transaction" validate:"required"`
 	RequestID    string `json:"request_id"`

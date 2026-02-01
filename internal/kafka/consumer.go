@@ -17,7 +17,8 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-func RunConsumer(ctx context.Context, brokers []string, topic string, groupID string, dlqTopic string, maxRetries int, backoffBase time.Duration, backoffCap time.Duration, backoffJitter bool, store repository.OrderStore, mem repository.Cache) {
+// RunConsumer запускает цикл Kafka-консьюмера и обрабатывает DLQ/повторы.
+func RunConsumer(ctx context.Context, brokers []string, topic string, groupID string, dlqTopic string, maxRetries int, backoffBase time.Duration, backoffCap time.Duration, backoffJitter bool, store repository.OrderStore, mem repository.CacheWriter) {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: brokers,
 		Topic:   topic,
@@ -116,7 +117,7 @@ func isRetriableDBError(err error) bool {
 	}
 	var netErr net.Error
 	if errors.As(err, &netErr) {
-		return netErr.Timeout() || netErr.Temporary()
+		return netErr.Timeout()
 	}
 	return false
 }

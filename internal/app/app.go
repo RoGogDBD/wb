@@ -2,10 +2,10 @@ package app
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"github.com/RoGogDBD/wb/internal/config"
-	"github.com/RoGogDBD/wb/internal/config/db"
 	"github.com/RoGogDBD/wb/internal/kafka"
 	"github.com/RoGogDBD/wb/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,15 +21,29 @@ type App struct {
 	cancel    context.CancelFunc
 }
 
+// Deps содержит внешние зависимости приложения.
+type Deps struct {
+	Cache  repository.Cache
+	Store  repository.OrderStore
+	DBPool *pgxpool.Pool
+}
+
 // NewApp создает новое приложение.
-func NewApp(cfg *config.Config) (*App, error) {
+func NewApp(cfg *config.Config, deps Deps) (*App, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	if deps.Cache == nil {
+		cancel()
+		return nil, errors.New("cache dependency is required")
+	}
+
 	app := &App{
-		Config:  cfg,
-		Storage: repository.NewMemStorageWithConfig(cfg.Cache.MaxItems, cfg.Cache.TTL),
-		ctx:     ctx,
-		cancel:  cancel,
+		Config:    cfg,
+		Storage:   deps.Cache,
+		PgStorage: deps.Store,
+		DBPool:    deps.DBPool,
+		ctx:       ctx,
+		cancel:    cancel,
 	}
 
 	return app, nil
@@ -43,12 +57,6 @@ func (a *App) Init() error {
 	}
 	a.Storage.StartJanitor(a.ctx, a.Config.Cache.CleanupInterval)
 
-	// Инициализация БД
-	if err := a.initDatabase(a.ctx); err != nil {
-		log.Printf("Warning: cannot connect to DB: %v. Running without database.", err)
-		return nil
-	}
-
 	// Загрузка данных из БД в кэш
 	if a.PgStorage != nil {
 		if err := a.loadOrdersToCache(a.ctx); err != nil {
@@ -56,7 +64,7 @@ func (a *App) Init() error {
 		}
 	}
 
-	// Запуск Kafka consumer
+	// Запуск Kafka-консьюмера
 	if a.PgStorage != nil {
 		go kafka.RunConsumer(
 			a.ctx,
@@ -72,25 +80,6 @@ func (a *App) Init() error {
 			a.Storage,
 		)
 	}
-
-	return nil
-}
-
-// initDatabase инициализирует подключение к базе данных
-func (a *App) initDatabase(ctx context.Context) error {
-	if a.Config.Database.DSN == "" {
-		log.Println("No DSN provided, running without database")
-		return nil
-	}
-
-	dbPool, err := db.NewPool(ctx, a.Config.Database.DSN)
-	if err != nil {
-		return err
-	}
-
-	a.DBPool = dbPool
-	a.PgStorage = repository.NewPostgresStorage(dbPool)
-	log.Println("Database initialized successfully")
 
 	return nil
 }
@@ -118,7 +107,7 @@ func (a *App) loadOrdersToCache(ctx context.Context) error {
 func (a *App) Close() {
 	log.Println("Shutting down application...")
 
-	// Отменяем контекст (остановит Kafka consumer)
+	// Отменяем контекст (остановит Kafka-консьюмер)
 	if a.cancel != nil {
 		a.cancel()
 	}

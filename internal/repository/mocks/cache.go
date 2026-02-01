@@ -8,6 +8,7 @@ import (
 	"github.com/RoGogDBD/wb/internal/models"
 )
 
+// CacheMock — мок-реализация repository.Cache.
 type CacheMock struct {
 	SaveFunc          func(order *models.Order)
 	GetByIDFunc       func(orderUID string) (*models.Order, error)
@@ -17,6 +18,7 @@ type CacheMock struct {
 	StartJanitorCalls int
 }
 
+// Save фиксирует вызов Save.
 func (m *CacheMock) Save(order *models.Order) {
 	m.SaveCalls++
 	if m.SaveFunc != nil {
@@ -24,6 +26,7 @@ func (m *CacheMock) Save(order *models.Order) {
 	}
 }
 
+// GetByID фиксирует вызов GetByID.
 func (m *CacheMock) GetByID(orderUID string) (*models.Order, error) {
 	m.GetByIDCalls++
 	if m.GetByIDFunc == nil {
@@ -32,6 +35,7 @@ func (m *CacheMock) GetByID(orderUID string) (*models.Order, error) {
 	return m.GetByIDFunc(orderUID)
 }
 
+// StartJanitor фиксирует вызов StartJanitor.
 func (m *CacheMock) StartJanitor(ctx context.Context, interval time.Duration) {
 	m.StartJanitorCalls++
 	if m.StartJanitorFunc != nil {

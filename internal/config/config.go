@@ -42,6 +42,7 @@ type KafkaConfig struct {
 	DLQBackoffJitter bool          `yaml:"dlq_backoff_jitter"`
 }
 
+// CacheConfig содержит настройки кеша.
 type CacheConfig struct {
 	MaxItems        int           `yaml:"max_items"`
 	TTL             time.Duration `yaml:"ttl"`
