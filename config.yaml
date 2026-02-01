@@ -13,6 +13,9 @@ kafka:
     - "localhost:9092"
   topic: "orders"
   group_id: "orders-consumer"
+  dlq_topic: "orders.dlq"
+  dlq_max_retries: 3
+  dlq_backoff: 500ms
 
 cache:
   max_items: 10000

@@ -62,6 +62,10 @@ func (a *App) Init() error {
 			a.ctx,
 			a.Config.Kafka.Brokers,
 			a.Config.Kafka.Topic,
+			a.Config.Kafka.GroupID,
+			a.Config.Kafka.DLQTopic,
+			a.Config.Kafka.DLQMaxRetries,
+			a.Config.Kafka.DLQBackoff,
 			a.PgStorage,
 			a.Storage,
 		)

@@ -32,9 +32,12 @@ type DatabaseConfig struct {
 
 // KafkaConfig содержит настройки Kafka
 type KafkaConfig struct {
-	Brokers []string `yaml:"brokers"`
-	Topic   string   `yaml:"topic"`
-	GroupID string   `yaml:"group_id"`
+	Brokers       []string      `yaml:"brokers"`
+	Topic         string        `yaml:"topic"`
+	GroupID       string        `yaml:"group_id"`
+	DLQTopic      string        `yaml:"dlq_topic"`
+	DLQMaxRetries int           `yaml:"dlq_max_retries"`
+	DLQBackoff    time.Duration `yaml:"dlq_backoff"`
 }
 
 type CacheConfig struct {
@@ -85,9 +88,12 @@ func defaultConfig() Config {
 			DSN: "",
 		},
 		Kafka: KafkaConfig{
-			Brokers: []string{"localhost:9092"},
-			Topic:   "orders",
-			GroupID: "orders-consumer",
+			Brokers:       []string{"localhost:9092"},
+			Topic:         "orders",
+			GroupID:       "orders-consumer",
+			DLQTopic:      "orders.dlq",
+			DLQMaxRetries: 3,
+			DLQBackoff:    500 * time.Millisecond,
 		},
 		Cache: CacheConfig{
 			MaxItems:        10000,
@@ -118,5 +124,14 @@ func normalizeConfig(cfg *Config) {
 	}
 	if cfg.Cache.TTL < 0 {
 		cfg.Cache.TTL = 0
+	}
+	if cfg.Kafka.DLQTopic == "" && cfg.Kafka.Topic != "" {
+		cfg.Kafka.DLQTopic = cfg.Kafka.Topic + ".dlq"
+	}
+	if cfg.Kafka.DLQMaxRetries < 0 {
+		cfg.Kafka.DLQMaxRetries = 0
+	}
+	if cfg.Kafka.DLQBackoff < 0 {
+		cfg.Kafka.DLQBackoff = 0
 	}
 }
