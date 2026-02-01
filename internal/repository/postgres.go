@@ -2,11 +2,13 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
 	"github.com/RoGogDBD/wb/internal/models"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -23,7 +25,11 @@ func (r *PostgresStorage) InsertOrder(ctx context.Context, o *models.Order) erro
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			log.Printf("rollback failed: %v", err)
+		}
+	}()
 
 	orderUUID, err := uuid.Parse(o.OrderUID)
 	if err != nil {

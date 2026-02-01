@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/go-playground/validator/v10"
@@ -11,13 +12,25 @@ var (
 	zipRU   = regexp.MustCompile(`^\d{6}$`)
 )
 
-func New() *validator.Validate {
+func New() (*validator.Validate, error) {
 	v := validator.New()
-	_ = v.RegisterValidation("phone_ru", func(fl validator.FieldLevel) bool {
+	if err := v.RegisterValidation("phone_ru", func(fl validator.FieldLevel) bool {
 		return phoneRU.MatchString(fl.Field().String())
-	})
-	_ = v.RegisterValidation("zip_ru", func(fl validator.FieldLevel) bool {
+	}); err != nil {
+		return nil, fmt.Errorf("register phone_ru validation: %w", err)
+	}
+	if err := v.RegisterValidation("zip_ru", func(fl validator.FieldLevel) bool {
 		return zipRU.MatchString(fl.Field().String())
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("register zip_ru validation: %w", err)
+	}
+	return v, nil
+}
+
+func MustNew() *validator.Validate {
+	v, err := New()
+	if err != nil {
+		panic(err)
+	}
 	return v
 }

@@ -25,17 +25,17 @@ func RunConsumer(ctx context.Context, brokers []string, topic string, groupID st
 		}
 	}()
 
-	dlqWriter := kafka.NewWriter(kafka.WriterConfig{
-		Brokers: brokers,
-		Topic:   dlqTopic,
-	})
+	dlqWriter := &kafka.Writer{
+		Addr:  kafka.TCP(brokers...),
+		Topic: dlqTopic,
+	}
 	defer func() {
 		if err := dlqWriter.Close(); err != nil {
 			log.Printf("dlq writer close error: %v", err)
 		}
 	}()
 
-	validate := validation.New()
+	validate := validation.MustNew()
 
 	for {
 		m, err := r.ReadMessage(ctx)

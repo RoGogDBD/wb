@@ -26,21 +26,6 @@ type (
 	}
 )
 
-func NewMemStorage() *MemStorage {
-	return NewMemStorageWithLimit(10000)
-}
-
-func NewMemStorageWithLimit(maxItems int) *MemStorage {
-	if maxItems <= 0 {
-		maxItems = 10000
-	}
-	return &MemStorage{
-		orders:   make(map[string]*list.Element),
-		lruList:  list.New(),
-		maxItems: maxItems,
-	}
-}
-
 func NewMemStorageWithConfig(maxItems int, ttl time.Duration) *MemStorage {
 	if maxItems <= 0 {
 		maxItems = 10000

@@ -17,7 +17,7 @@ type Handler struct {
 	pgStorage repository.OrderStore
 }
 
-var validate = validation.New()
+var validate = validation.MustNew()
 
 func NewHandler(storage repository.Cache, pgStorage repository.OrderStore) *Handler {
 	return &Handler{
@@ -32,7 +32,7 @@ func NewHandler(storage repository.Cache, pgStorage repository.OrderStore) *Hand
 // @Produce plain
 // @Success 200 {string} string "OK"
 // @Router /healthz [get]
-func (h *Handler) HealthHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HealthHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write([]byte("OK")); err != nil {
 		log.Printf("health response write error: %v", err)
