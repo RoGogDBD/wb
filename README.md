@@ -76,7 +76,7 @@ CONFIG_PATH=./config.yaml go run ./cmd/server
 
 - `database.dsn` — строка подключения к PostgreSQL
 - `kafka.brokers`, `kafka.topic`, `kafka.group_id` — настройки Kafka
-- `kafka.dlq_topic`, `kafka.dlq_max_retries`, `kafka.dlq_backoff` — настройки DLQ
+- `kafka.dlq_topic`, `kafka.dlq_max_retries`, `kafka.dlq_backoff`, `kafka.dlq_backoff_cap`, `kafka.dlq_backoff_jitter` — настройки DLQ и retry
 - `cache.max_items`, `cache.ttl`, `cache.cleanup_interval` — лимит и TTL кэша
 
 ### Веб-интерфейс

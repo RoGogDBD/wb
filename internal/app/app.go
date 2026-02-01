@@ -66,6 +66,8 @@ func (a *App) Init() error {
 			a.Config.Kafka.DLQTopic,
 			a.Config.Kafka.DLQMaxRetries,
 			a.Config.Kafka.DLQBackoff,
+			a.Config.Kafka.DLQBackoffCap,
+			a.Config.Kafka.DLQBackoffJitter,
 			a.PgStorage,
 			a.Storage,
 		)

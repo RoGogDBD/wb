@@ -3,17 +3,21 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
+	"net"
 	"strconv"
 	"time"
 
 	"github.com/RoGogDBD/wb/internal/models"
 	"github.com/RoGogDBD/wb/internal/repository"
+	"github.com/RoGogDBD/wb/internal/retry"
 	"github.com/RoGogDBD/wb/internal/validation"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/segmentio/kafka-go"
 )
 
-func RunConsumer(ctx context.Context, brokers []string, topic string, groupID string, dlqTopic string, maxRetries int, backoff time.Duration, store repository.OrderStore, mem repository.Cache) {
+func RunConsumer(ctx context.Context, brokers []string, topic string, groupID string, dlqTopic string, maxRetries int, backoffBase time.Duration, backoffCap time.Duration, backoffJitter bool, store repository.OrderStore, mem repository.Cache) {
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: brokers,
 		Topic:   topic,
@@ -36,6 +40,12 @@ func RunConsumer(ctx context.Context, brokers []string, topic string, groupID st
 	}()
 
 	validate := validation.MustNew()
+	backoff := retry.NewBackoff(backoffBase, backoffCap, backoffJitter)
+	retryPolicy := retry.Policy{
+		MaxRetries:  maxRetries,
+		Backoff:     backoff,
+		ShouldRetry: isRetriableDBError,
+	}
 
 	for {
 		m, err := r.ReadMessage(ctx)
@@ -57,24 +67,16 @@ func RunConsumer(ctx context.Context, brokers []string, topic string, groupID st
 			continue
 		}
 
-		var lastErr error
-		for attempt := 0; attempt <= maxRetries; attempt++ {
-			lastErr = store.InsertOrder(ctx, &ord)
-			if lastErr == nil {
-				break
-			}
-			log.Printf("failed to save order to DB (attempt %d/%d): %v", attempt+1, maxRetries+1, lastErr)
-			wait := backoffForAttempt(backoff, attempt)
+		err = retry.Do(ctx, retryPolicy, func() error {
+			return store.InsertOrder(ctx, &ord)
+		}, func(err error, attempt int, wait time.Duration) {
+			log.Printf("failed to save order to DB (attempt %d/%d): %v", attempt, maxRetries+1, err)
 			if wait > 0 {
-				select {
-				case <-time.After(wait):
-				case <-ctx.Done():
-					return
-				}
+				log.Printf("retrying in %s", wait)
 			}
-		}
-		if lastErr != nil {
-			sendToDLQ(ctx, dlqWriter, m, "db", lastErr)
+		})
+		if err != nil {
+			sendToDLQ(ctx, dlqWriter, m, "db", err)
 			continue
 		}
 
@@ -105,15 +107,18 @@ func sendToDLQ(ctx context.Context, w *kafka.Writer, m kafka.Message, stage stri
 	}
 }
 
-func backoffForAttempt(base time.Duration, attempt int) time.Duration {
-	if base <= 0 || attempt < 0 {
-		return 0
+func isRetriableDBError(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		if len(pgErr.Code) >= 2 && pgErr.Code[:2] == "08" {
+			return true
+		}
 	}
-	wait := base
-	for i := 0; i < attempt; i++ {
-		wait *= 2
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return netErr.Timeout() || netErr.Temporary()
 	}
-	return wait
+	return false
 }
 
 func intToString(v int) string {

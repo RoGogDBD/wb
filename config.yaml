@@ -16,6 +16,8 @@ kafka:
   dlq_topic: "orders.dlq"
   dlq_max_retries: 3
   dlq_backoff: 500ms
+  dlq_backoff_cap: 5s
+  dlq_backoff_jitter: true
 
 cache:
   max_items: 10000
