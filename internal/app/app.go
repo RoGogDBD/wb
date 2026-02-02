@@ -1,3 +1,4 @@
+// Package app содержит сборку и жизненный цикл приложения.
 package app
 
 import (

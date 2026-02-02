@@ -1,3 +1,4 @@
+// Package repository содержит интерфейсы для работы с хранилищами.
 package repository
 
 import (

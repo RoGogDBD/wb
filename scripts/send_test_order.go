@@ -1,3 +1,4 @@
+// Package main содержит утилиту отправки тестовых заказов.
 package main
 
 import (

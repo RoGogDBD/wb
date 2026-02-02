@@ -78,6 +78,10 @@ CONFIG_PATH=./config.yaml go run ./cmd/server
 - `kafka.brokers`, `kafka.topic`, `kafka.group_id` — настройки Kafka
 - `kafka.dlq_topic`, `kafka.dlq_max_retries`, `kafka.dlq_backoff`, `kafka.dlq_backoff_cap`, `kafka.dlq_backoff_jitter` — настройки DLQ и retry
 - `cache.max_items`, `cache.ttl`, `cache.cleanup_interval` — лимит и TTL кэша
+- `telemetry.service_name`, `telemetry.environment` — метаданные сервиса для трейсов и метрик
+- `telemetry.otlp_endpoint`, `telemetry.otlp_insecure` — адрес и режим соединения OTLP
+- `telemetry.traces_enabled`, `telemetry.metrics_enabled`, `telemetry.trace_sample_ratio` — включение и сэмплинг
+- `telemetry.metrics_path` — путь для экспорта Prometheus-метрик
 
 ### Веб-интерфейс
 
@@ -155,6 +159,38 @@ GET http://localhost:8080/order/{order_uid}
 ```
 http://localhost:8080/swagger/index.html
 ```
+
+### Метрики
+
+Метрики экспортируются по адресу:
+```
+http://localhost:8080/metrics
+```
+
+Как открыть метрики:
+1) Запустите сервис (`make run` или `go run ./cmd/server`).
+2) Откройте в браузере `http://localhost:8080/metrics` или выполните:
+```
+curl http://localhost:8080/metrics
+```
+
+Путь можно изменить через `telemetry.metrics_path` в `config.yaml`.
+
+### Prometheus + Grafana
+
+В проект добавлены Prometheus и Grafana через Docker Compose.
+
+Запуск:
+```
+docker compose up -d prometheus grafana
+```
+
+Доступ:
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (логин/пароль по умолчанию: `admin` / `admin`)
+
+Prometheus настроен на сбор метрик с `http://host.docker.internal:8080/metrics`.
+Если сервис запущен не на localhost или порт другой — обновите `prometheus.yml`.
 
 ## Доступные команды (Makefile)
 

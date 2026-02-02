@@ -17,9 +17,11 @@ import (
 	"github.com/RoGogDBD/wb/internal/config/db"
 	"github.com/RoGogDBD/wb/internal/handlers"
 	"github.com/RoGogDBD/wb/internal/repository"
+	"github.com/RoGogDBD/wb/internal/telemetry"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	httpSwagger "github.com/swaggo/http-swagger"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 func main() {
@@ -58,7 +60,25 @@ func main() {
 	}
 	defer application.Close()
 
-	srv := setupHTTPServer(cfg, application)
+	telemetryProviders, err := telemetry.Init(context.Background(), cfg.Telemetry)
+	if err != nil {
+		log.Printf("Telemetry init failed: %v", err)
+	} else {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := telemetryProviders.Shutdown(ctx); err != nil {
+				log.Printf("Telemetry shutdown error: %v", err)
+			}
+		}()
+	}
+
+	var metricsHandler http.Handler
+	if telemetryProviders != nil {
+		metricsHandler = telemetryProviders.MetricsHandler
+	}
+
+	srv := setupHTTPServer(cfg, application, metricsHandler)
 	if err := run(srv); err != nil {
 		log.Fatal(err)
 	}
@@ -73,9 +93,12 @@ func run(srv *http.Server) error {
 }
 
 // setupHTTPServer настраивает и возвращает HTTP сервер
-func setupHTTPServer(cfg *config.Config, application *app.App) *http.Server {
+func setupHTTPServer(cfg *config.Config, application *app.App, metricsHandler http.Handler) *http.Server {
 	r := chi.NewRouter()
 	config.SetupMiddlewares(r)
+	if cfg.Telemetry.TracesEnabled || cfg.Telemetry.MetricsEnabled {
+		r.Use(otelhttp.NewMiddleware("http-server"))
+	}
 
 	// Настройка Swagger
 	docs.SwaggerInfo.Title = "Order API"
@@ -90,6 +113,9 @@ func setupHTTPServer(cfg *config.Config, application *app.App) *http.Server {
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 	r.Get("/healthz", h.HealthHandler)
 	r.Get("/order/{order_uid}", h.OrderHandler)
+	if metricsHandler != nil {
+		r.Handle(cfg.Telemetry.MetricsPath, metricsHandler)
+	}
 
 	return &http.Server{
 		Addr:         cfg.Server.Address(),

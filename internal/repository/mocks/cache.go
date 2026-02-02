@@ -1,3 +1,4 @@
+// Package mocks содержит тестовые реализации интерфейсов репозитория.
 package mocks
 
 import (

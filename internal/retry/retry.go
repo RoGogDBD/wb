@@ -1,3 +1,4 @@
+// Package retry содержит утилиты повторных попыток.
 package retry
 
 import (

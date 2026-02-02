@@ -1,3 +1,4 @@
+// Package config содержит конфигурацию и загрузчик настроек.
 package config
 
 import (
@@ -10,10 +11,11 @@ import (
 
 // Config содержит конфигурацию приложения
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Kafka    KafkaConfig    `yaml:"kafka"`
-	Cache    CacheConfig    `yaml:"cache"`
+	Server    ServerConfig    `yaml:"server"`
+	Database  DatabaseConfig  `yaml:"database"`
+	Kafka     KafkaConfig     `yaml:"kafka"`
+	Cache     CacheConfig     `yaml:"cache"`
+	Telemetry TelemetryConfig `yaml:"telemetry"`
 }
 
 // ServerConfig содержит настройки HTTP сервера
@@ -47,6 +49,18 @@ type CacheConfig struct {
 	MaxItems        int           `yaml:"max_items"`
 	TTL             time.Duration `yaml:"ttl"`
 	CleanupInterval time.Duration `yaml:"cleanup_interval"`
+}
+
+// TelemetryConfig содержит настройки трассировки и метрик.
+type TelemetryConfig struct {
+	ServiceName      string  `yaml:"service_name"`
+	Environment      string  `yaml:"environment"`
+	OTLPEndpoint     string  `yaml:"otlp_endpoint"`
+	OTLPInsecure     bool    `yaml:"otlp_insecure"`
+	TracesEnabled    bool    `yaml:"traces_enabled"`
+	MetricsEnabled   bool    `yaml:"metrics_enabled"`
+	TraceSampleRatio float64 `yaml:"trace_sample_ratio"`
+	MetricsPath      string  `yaml:"metrics_path"`
 }
 
 // LoadConfig загружает конфигурацию из файла
@@ -105,6 +119,16 @@ func defaultConfig() Config {
 			TTL:             30 * time.Minute,
 			CleanupInterval: 5 * time.Minute,
 		},
+		Telemetry: TelemetryConfig{
+			ServiceName:      "wb-orders",
+			Environment:      "local",
+			OTLPEndpoint:     "localhost:4318",
+			OTLPInsecure:     true,
+			TracesEnabled:    true,
+			MetricsEnabled:   true,
+			TraceSampleRatio: 1.0,
+			MetricsPath:      "/metrics",
+		},
 	}
 }
 
@@ -129,6 +153,18 @@ func normalizeConfig(cfg *Config) {
 	}
 	if cfg.Cache.TTL < 0 {
 		cfg.Cache.TTL = 0
+	}
+	if cfg.Telemetry.ServiceName == "" {
+		cfg.Telemetry.ServiceName = "wb-orders"
+	}
+	if cfg.Telemetry.OTLPEndpoint == "" {
+		cfg.Telemetry.OTLPEndpoint = "localhost:4318"
+	}
+	if cfg.Telemetry.TraceSampleRatio <= 0 || cfg.Telemetry.TraceSampleRatio > 1 {
+		cfg.Telemetry.TraceSampleRatio = 1.0
+	}
+	if cfg.Telemetry.MetricsPath == "" {
+		cfg.Telemetry.MetricsPath = "/metrics"
 	}
 	if cfg.Kafka.DLQTopic == "" && cfg.Kafka.Topic != "" {
 		cfg.Kafka.DLQTopic = cfg.Kafka.Topic + ".dlq"

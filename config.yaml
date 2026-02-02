@@ -23,3 +23,13 @@ cache:
   max_items: 10000
   ttl: 30m
   cleanup_interval: 5m
+
+telemetry:
+  service_name: "wb-orders"
+  environment: "local"
+  otlp_endpoint: "localhost:4318"
+  otlp_insecure: true
+  traces_enabled: true
+  metrics_enabled: true
+  trace_sample_ratio: 1.0
+  metrics_path: "/metrics"

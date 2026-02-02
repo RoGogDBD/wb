@@ -1,3 +1,4 @@
+// Package validation содержит валидаторы входных данных.
 package validation
 
 import (

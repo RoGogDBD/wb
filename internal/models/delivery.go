@@ -1,3 +1,4 @@
+// Package models содержит доменные модели приложения.
 package models
 
 // Delivery описывает данные доставки.

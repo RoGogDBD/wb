@@ -1,3 +1,4 @@
+// Package kafka содержит логику Kafka-консьюмера.
 package kafka
 
 import (
